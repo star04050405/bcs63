@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Better Call Saul 打卡</title>
+<meta name="theme-color" content="#0a0a0f">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(180deg, #1a1a2e 0%, #0a0a0f 100%);
+    padding: 28px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .hero h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #f5c842, #ff6b35);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-top: 6px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .overall-progress {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+  }
+  .progress-bar-wrap {
+    width: 180px;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f5c842, #ff6b35);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .progress-text {
+    font-size: 13px;
+    color: #f5c842;
+    font-weight: 600;
+  }
+
+  /* Season nav */
+  .season-nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 16px 16px 12px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .season-nav::-webkit-scrollbar { display: none; }
+  .season-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    color: #aaa;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    white-space: nowrap;
+  }
+  .season-tab.active {
+    border-color: #f5c842;
+    color: #f5c842;
+    background: rgba(245,200,66,0.1);
+  }
+  .season-tab .tab-count {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-left: 4px;
+  }
+
+  /* Season content */
+  .season-content { padding: 0 16px 100px; }
+
+  /* Poster card */
+  .poster-card {
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .poster {
+    height: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .poster-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    z-index: 0;
+  }
+  .poster::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.9) 100%);
+    z-index: 1;
+  }
+  .poster-info {
+    position: relative;
+    z-index: 2;
+  }
+  .poster-season {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    opacity: 0.8;
+    margin-bottom: 4px;
+    color: rgba(255,255,255,0.9);
+  }
+  .poster-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .poster-year {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 4px;
+  }
+  .poster-fallback-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    font-size: 64px;
+    z-index: 0;
+    opacity: 0.12;
+    display: none;
+  }
+  .poster.no-img .poster-fallback-icon { display: block; }
+
+  /* Fallback color themes when image fails */
+  .s1 { background: linear-gradient(135deg, #1a3a5c 0%, #0d1b2a 60%, #1b263b 100%); }
+  .s2 { background: linear-gradient(135deg, #2d1b4e 0%, #1a0a2e 60%, #3d1f6d 100%); }
+  .s3 { background: linear-gradient(135deg, #4a1942 0%, #1a0a1e 60%, #6b2fa0 100%); }
+  .s4 { background: linear-gradient(135deg, #1b4332 0%, #081c15 60%, #2d6a4f 100%); }
+  .s5 { background: linear-gradient(135deg, #7f2b0e 0%, #2a0e00 60%, #b84000 100%); }
+  .s6 { background: linear-gradient(135deg, #1a1a2e 0%, #000 60%, #16213e 100%); }
+
+  /* Season progress */
+  .season-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-chip {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f5c842;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+  }
+
+  /* Episode list */
+  .ep-list { list-style: none; }
+  .ep-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .ep-item:active { transform: scale(0.98); }
+  .ep-item.watched {
+    background: rgba(245,200,66,0.06);
+    border-color: rgba(245,200,66,0.15);
+  }
+  .ep-check {
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+  }
+  .ep-item.watched .ep-check {
+    background: linear-gradient(135deg, #f5c842, #ff6b35);
+    border-color: transparent;
+  }
+  .ep-item.watched .ep-check::after {
+    content: '✓';
+    color: #000;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .ep-num {
+    font-size: 12px;
+    color: #666;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+  .ep-name {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.3;
+  }
+  .ep-item.watched .ep-name {
+    color: #999;
+    text-decoration: line-through;
+    text-decoration-color: rgba(255,255,255,0.2);
+  }
+
+  /* Completion banner */
+  .complete-banner {
+    text-align: center;
+    padding: 20px;
+    margin: 12px 0;
+    background: linear-gradient(135deg, rgba(245,200,66,0.1), rgba(255,107,53,0.1));
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 12px;
+    display: none;
+  }
+  .complete-banner.show { display: block; }
+  .complete-banner .icon { font-size: 32px; }
+  .complete-banner .msg {
+    font-size: 14px;
+    color: #f5c842;
+    margin-top: 8px;
+    font-weight: 600;
+  }
+
+  /* Reset button */
+  .reset-area {
+    text-align: center;
+    padding: 20px 16px 40px;
+  }
+  .reset-btn {
+    padding: 10px 24px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .reset-btn:hover { border-color: #ff4757; color: #ff4757; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>BETTER CALL SAUL</h1>
+  <div class="subtitle">风骚律师 · 追剧打卡</div>
+  <div class="overall-progress">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="overallBar"></div>
+    </div>
+    <span class="progress-text" id="overallText">0 / 63</span>
+  </div>
+</div>
+
+<div class="season-nav" id="seasonNav"></div>
+<div class="season-content" id="seasonContent"></div>
+
+<div class="reset-area">
+  <button class="reset-btn" onclick="resetAll()">重置所有打卡记录</button>
+</div>
+
+<script>
+const TMDB = 'https://image.tmdb.org/t/p/w500';
+const SEASONS = [
+  {
+    num: 1, year: 2015, cls: 's1', icon: '⚖️',
+    label: '第一季',
+    poster: `${TMDB}/bAbZBZmz25Lqk8A8mwMWzAkvlAj.jpg`,
+    eps: ['Uno','Mijo','Nacho','Hero','Alpine Shepherd Boy','Five-O','Bingo','RICO','Pimento','Marco']
+  },
+  {
+    num: 2, year: 2016, cls: 's2', icon: '📞',
+    label: '第二季',
+    poster: `${TMDB}/4NDwAQjFD8bTOsMKxYdl8IK10R9.jpg`,
+    eps: ['Switch','Cobbler','Amarillo','Gloves Off','Rebecca',"Bali Ha'i",'Inflatable','Fifi','Nailed','Klick']
+  },
+  {
+    num: 3, year: 2017, cls: 's3', icon: '🎭',
+    label: '第三季',
+    poster: `${TMDB}/dHIMW3CkL21jYWtsHiAdwkCjAej.jpg`,
+    eps: ['Mabel','Witness','Sunk Costs','Sabrosito','Chicanery','Off Brand','Expenses','Slip','Fall','Lantern']
+  },
+  {
+    num: 4, year: 2018, cls: 's4', icon: '🏜️',
+    label: '第四季',
+    poster: `${TMDB}/8zvIqLFOrBymKKI3L2W1AH8YZQI.jpg`,
+    eps: ['Smoke','Breathe','Something Beautiful','Talk','Quite a Ride','Piñata','Something Stupid','Coushatta','Wiedersehen','Winner']
+  },
+  {
+    num: 5, year: 2020, cls: 's5', icon: '💼',
+    label: '第五季',
+    poster: `${TMDB}/dZHa2vUtYNQ81KV38eHGjn0P4JE.jpg`,
+    eps: ['Magic Man','50% Off','The Guy for This','Namaste','Dedicado a Max','Wexler v. Goodman','JMM','Bagman','Bad Choice Road','Something Unforgivable']
+  },
+  {
+    num: 6, year: 2022, cls: 's6', icon: '🎬',
+    label: '第六季',
+    poster: `${TMDB}/wKTzWgDaHxjdMhZ3zsVEF5eXVvX.jpg`,
+    eps: ['Wine and Roses','Carrot and Stick','Rock and Hard Place','Hit and Run','Black and Blue','Axe and Grind','Plan and Execution','Point and Shoot','Fun and Games','Nippy','Breaking Bad','Waterworks','Saul Gone'],
+    part1: 7
+  }
+];
+
+const TOTAL = 63;
+const KEY = 'bcs_tracker_v1';
+let watched = JSON.parse(localStorage.getItem(KEY) || '{}');
+let activeSeason = 1;
+
+function save() { localStorage.setItem(KEY, JSON.stringify(watched)); }
+function epKey(s, e) { return `${s}-${e}`; }
+function isWatched(s, e) { return !!watched[epKey(s, e)]; }
+
+function toggleEp(s, e) {
+  const k = epKey(s, e);
+  if (watched[k]) delete watched[k]; else watched[k] = true;
+  save();
+  render();
+}
+
+function getSeasonWatched(s) {
+  const season = SEASONS[s - 1];
+  return season.eps.filter((_, i) => isWatched(s, i + 1)).length;
+}
+
+function getTotalWatched() {
+  return Object.keys(watched).length;
+}
+
+function renderNav() {
+  const nav = document.getElementById('seasonNav');
+  nav.innerHTML = SEASONS.map(s => {
+    const w = getSeasonWatched(s.num);
+    const total = s.eps.length;
+    const done = w === total;
+    return `<div class="season-tab ${s.num === activeSeason ? 'active' : ''}" onclick="switchSeason(${s.num})">
+      ${s.label}<span class="tab-count">${w}/${total}</span>
+    </div>`;
+  }).join('');
+}
+
+function switchSeason(num) {
+  activeSeason = num;
+  render();
+  document.getElementById('seasonNav').scrollLeft = 0;
+}
+
+function renderContent() {
+  const s = SEASONS[activeSeason - 1];
+  const w = getSeasonWatched(s.num);
+  const total = s.eps.length;
+  const content = document.getElementById('seasonContent');
+
+  let epsHtml = s.eps.map((ep, i) => {
+    const num = i + 1;
+    const done = isWatched(s.num, num);
+    return `<li class="ep-item ${done ? 'watched' : ''}" onclick="toggleEp(${s.num}, ${num})">
+      <div class="ep-check"></div>
+      <span class="ep-num">${String(num).padStart(2, '0')}</span>
+      <span class="ep-name">${ep}</span>
+    </li>`;
+  }).join('');
+
+  const allDone = w === total;
+
+  content.innerHTML = `
+    <div class="poster-card">
+      <div class="poster ${s.cls}" id="posterArea">
+        <img class="poster-img" src="${s.poster}" alt="Season ${s.num} poster"
+             onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+        <div class="poster-fallback-icon">${s.icon}</div>
+        <div class="poster-info">
+          <div class="poster-season">Season ${s.num}</div>
+          <div class="poster-title">Better Call Saul</div>
+          <div class="poster-year">${s.year} · ${total} 集${s.part1 ? ' · Part 1 & 2' : ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="season-stats">
+      <div class="stat-chip">
+        <div class="stat-num">${w}</div>
+        <div class="stat-label">已看</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num">${total - w}</div>
+        <div class="stat-label">未看</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num">${total > 0 ? Math.round(w / total * 100) : 0}%</div>
+        <div class="stat-label">进度</div>
+      </div>
+    </div>
+    <div class="complete-banner ${allDone ? 'show' : ''}">
+      <div class="icon">🎉</div>
+      <div class="msg">${s.label}全部看完！It's all good, man!</div>
+    </div>
+    <ul class="ep-list">${epsHtml}</ul>
+  `;
+}
+
+function renderOverall() {
+  const total = getTotalWatched();
+  const pct = Math.round(total / TOTAL * 100);
+  document.getElementById('overallBar').style.width = pct + '%';
+  document.getElementById('overallText').textContent = `${total} / ${TOTAL}`;
+}
+
+function render() {
+  renderNav();
+  renderContent();
+  renderOverall();
+}
+
+function resetAll() {
+  if (confirm('确定要清除所有打卡记录吗？')) {
+    watched = {};
+    save();
+    render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
